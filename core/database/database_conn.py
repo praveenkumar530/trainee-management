@@ -1,11 +1,11 @@
 import pandas as pd
 import logging
-
-import asyncpg 
+import asyncpg
 from asyncpg.pool import Pool
 
-logger = logging.getLogger(__name__)
-connection_pool : Pool = None 
+from core.logging_config import logger
+
+connection_pool : Pool = None
 
 
 async def get_connection_string():
@@ -38,7 +38,6 @@ async def close_connection_pool():
 # converts it to dataframe and returns
 async def fetch_as_dataframe(query: str, *args):
     logger.info(query)
-    print(query)
     async with connection_pool.acquire() as conn:
         stmt = await conn.prepare(query)
         columns = [a.name for a in stmt.get_attributes()]
@@ -48,16 +47,16 @@ async def fetch_as_dataframe(query: str, *args):
 
 # directly returns json list 
 async def fetch_all(query: str, *args):
-    print(query)
+    logger.info(query)
     async with connection_pool.acquire() as conn:
         return await conn.fetch(query, *args)
 
 async def insert(query: str, *args):
-    print("insert query ", query)
+    logger.info(query)
     async with connection_pool.acquire() as connection:
         return await connection.execute(query, *args)
 
 async def update(query: str, *args):
-    print("update query ", query)
+    logger.info(query)
     async with connection_pool.acquire() as connection:
         return await connection.execute(query, *args)

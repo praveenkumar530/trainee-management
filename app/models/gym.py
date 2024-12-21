@@ -13,6 +13,7 @@
 
 
 from pydantic import BaseModel, EmailStr
+from typing import List
 
 class UserDataRequest(BaseModel):
     first_name: str
@@ -20,3 +21,20 @@ class UserDataRequest(BaseModel):
     email: EmailStr
     phone: str
     role_id: int
+
+
+
+class ExerciseDataRequest(BaseModel):
+    name: str
+
+class ExerciseDetails(BaseModel):
+    exercise_id: int
+    reps: int
+    weight: int
+
+class SuperSetDataRequest(BaseModel):
+    name: str
+    user_id: int
+    trainer_id: int
+    session_time: int
+    exercises: List[ExerciseDetails]

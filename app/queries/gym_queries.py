@@ -1,13 +1,17 @@
 from typing import List
-from core.database.database_conn import fetch_all, insert, update
-from app.models.gym import UserDataRequest
+from core.database.database_conn import fetch_all, insert, update, connection_pool
+from app.models.gym import UserDataRequest, ExerciseDataRequest, SuperSetDataRequest
 from datetime import datetime
+from core.logging_config import logger
 
 class GymQuery:
 
     def __init__(self):
         self.users = "public.users"
         self.mapping = "public.trainer_user_mapping"
+        self.exercise_types = "public.exercise_types"
+        self.super_sets = "public.super_sets"
+        self.exercise  = "public.exercise"
 
 
     async def get_all_users(self) -> List[dict]:
@@ -40,3 +44,70 @@ class GymQuery:
                      ))'''
 
         return await fetch_all( query, trainer_email)
+
+    async def get_exercise_types(self) -> List[dict]:
+        query = f'''select * from {self.exercise_types} order by name '''
+        return await fetch_all( query)
+
+
+
+    async def add_exercise_type(self, input_data: ExerciseDataRequest) -> List[dict]:
+        query = f'''INSERT INTO {self.exercise_types} (name)
+                        values ($1)'''
+        query_params = [input_data.name]
+        return await insert( query, *query_params)
+
+
+    async def delete_exercise_type(self, type_id: int) -> List[dict]:
+        query = f'''delete from {self.exercise_types} where id = $1 '''
+        return await update( query, type_id)
+
+    async def add_super_set(self, input_data: SuperSetDataRequest) -> List[dict]:
+        query = f'''INSERT INTO {self.exercise_types} (name)
+                        values ($1)'''
+        query_params = [input_data.name]
+        return await insert( query, *query_params)
+
+    async def insert_superset_and_exercises(self, input_data: SuperSetDataRequest):
+        """
+        Inserts superset info and corresponding exercise details in a transaction.
+        Returns:
+            dict: Result of the operation.
+        """
+        superset_query = f"""
+            INSERT INTO {self.super_sets} (super_set_name, user_id, trainer_id, session_date)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+        """
+
+        exercise_query = f"""
+            INSERT INTO {self.exercise} (super_sets_id, exercise_type_id, reps, weight)
+            VALUES ($1, $2, $3, $4)
+        """
+
+        try:
+            async with connection_pool.acquire() as conn:
+                async with conn.transaction():
+                    # Insert superset and get its ID
+                    superset_id = await conn.fetchval(
+                        superset_query,
+                        input_data.name,
+                        input_data.user_id,
+                        input_data.trainer_id,
+                        input_data.session_time
+                    )
+
+                    # Insert exercise details using the superset ID
+                    for exercise in input_data.exercise_details:
+                        await conn.execute(
+                            exercise_query,
+                            superset_id,
+                            exercise.exercise_id,
+                            exercise.reps,
+                            exercise.weight
+                        )
+            return {"message": "Superset and exercises inserted successfully", "superset_id": superset_id}
+        except Exception as e:
+            logger.error(f"Transaction failed: {e}")
+            raise e
+
