@@ -22,6 +22,14 @@ class GymQuery:
                         WHERE u.role_id = 1'''
         return await fetch_all(get_query)
 
+    async def get_all_users1(self, user_id: str) -> List[dict]:
+        get_query = f'''SELECT u.id, concat(u.first_name, ' ', u.last_name) as Name,  u.email, u.phone, m.trainer_id ,
+                        concat(t.first_name, ' ', t.last_name) as trainer_name  FROM  {self.users} u 
+                        LEFT JOIN {self.mapping} m on m.user_id= u.id 
+                        LEFT JOIN {self.users} t on t.id = m.trainer_id
+                        WHERE u.role_id = $1'''
+        return await fetch_all(get_query, user_id)
+
 
     async def add_user(self, input_data: UserDataRequest) -> List[dict]:
         query = f'''INSERT INTO {self.users} (first_name, last_name, email, phone, role_id, created_at)
